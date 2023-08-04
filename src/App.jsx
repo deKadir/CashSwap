@@ -1,87 +1,94 @@
-import { useState,useEffect } from "react";
-
-
+import { useState, useEffect } from 'react';
+import { convertCurrency, fetchCurrencies } from './api';
+import { formatCurrency } from './utils/number';
+import Select from './components/Select';
+import Input from './components/Input';
 
 function App() {
+    const [amount, setAmount] = useState(1);
+    const [from, setFrom] = useState();
+    const [to, setTo] = useState();
+    const [currencies, setCurrencies] = useState([]);
+    const [result, setResult] = useState();
 
-    const [amount,setAmount]=useState(1);
-    const [from,setFrom]=useState();
-    const[to,setTo]=useState();
-    const [currencies,setCurrencies]=useState([]);
-    const [result,setResult]=useState({});
+    const handleConvert = async () => {
+        try {
+            //amount:amount yazmak yerine key ve value degeri ayni isimle oldugu icin direkt amount gecebilirim
+            const params = {
+                BASE: from,
+                symbols: to,
+                amount
+            };
 
+            const response = await convertCurrency(params);
+            if (response.data.success) {
+                setResult(response.data.rates);
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    };
 
-  const handleConvert=()=>{
+    const handleAmountChange = (event) => {
+        setAmount(event.target.value);
+    };
 
-    fetch(`https://api.exchangerate.host/latest?BASE=${from}&symbols=${to}&amount=${amount}`).then(async(response)=> await response.json()).then((response)=>{
+    const handleFromChange = (event) => {
+        setFrom(event.target.value);
+    };
+    const handleToChange = (event) => {
+        setTo(event.target.value);
+    };
 
-      if(response.success){
-          setResult(response.rates);
-      }
-    })
-  }
+    const fetchData = async () => {
+        try {
+            const res = await fetchCurrencies();
+            const rates = res.data.rates;
+            const ratesArray = Object.keys(rates);
 
-  const handleAmountChange=(event)=>{
-    setAmount(event.target.value)
-  }
-  
-  const handleFromChange=(event)=>{
-    setFrom(event.target.value);
-  } 
-  const handleToChange=(event)=>{
-    setTo(event.target.value);
-  } 
+            setCurrencies(ratesArray);
+            setTo(ratesArray[0]);
+            setFrom(ratesArray[0]);
+        } catch (error) {
+            console.log(error);
+        }
+    };
 
+    useEffect(() => {
+        fetchData();
+    }, []);
 
-  useEffect(()=>{
-  fetch('https://api.exchangerate.host/latest').then(async(response)=>await response.json()).then((res)=>{
+    useEffect(() => {
+        //kullanici amount from to degerlerini degistirdiginde resultu sifirla eski sonuc gozukmesin.
+        setResult();
+    }, [amount, from, to]);
 
-    const rates=res.rates;
-    const ratesArray=Object.keys(rates);
-   setCurrencies(ratesArray);
-   setTo(ratesArray[0]);
-   setFrom(ratesArray[0]);
-  
-  })
+    return (
+        <div>
+            <Input min="1" label="Amount" type="number" placeholder="Enter currency amount" value={amount} onChange={handleAmountChange} />
 
-  },[])
+            <Select label="from" onChange={handleFromChange}>
+                {currencies.map((currency) => (
+                    <Select.Option value={currency} key={currency}>
+                        {currency}
+                    </Select.Option>
+                ))}
+            </Select>
 
-  return (
-   <div>
-    <label htmlFor="amount">Amount</label>
-  <input  name="amount" type="number" id="amount" placeholder="Enter currency amount" value={amount} onChange={handleAmountChange} />
-  <br />
-  <br />
-  <label htmlFor="from">From</label>
-    <select id="from" onChange={handleFromChange}>
-      {
-        currencies.map((currency)=>
-        <option value={currency} key={currency}>{currency}</option>
-        )
-      }
-    </select>
-    <br />
-    <br />
-  
-    <label htmlFor="to">To</label>
+            <Select label="to" onChange={handleToChange}>
+                {currencies.map((currency) => (
+                    <Select.Option value={currency} key={currency}>
+                        {currency}
+                    </Select.Option>
+                ))}
+            </Select>
 
-    <select  id="to" onChange={handleToChange}>
-    {
-        currencies.map((currency)=> <option value={currency} key={currency}>{currency}</option>
-        )
-      }
-    </select>
-    <br />
-  <br />
-    <button onClick={handleConvert}>Convert</button>
-    <br />
-  <br />
-
-  <div>
-    {result[to]}
-  </div>
-   </div>
-  )
+            <button onClick={handleConvert}>Convert</button>
+            <br />
+            <br />
+            {amount && result && <div>{`${formatCurrency(from, amount)} =  ${formatCurrency(to, result[to])}`}</div>}
+        </div>
+    );
 }
 
-export default App
+export default App;
